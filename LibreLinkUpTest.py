@@ -3,13 +3,19 @@
 import requests
 
 url_base='https://api-eu.libreview.io'
-headers={'accept-encoding':'gzip','cache-control':'no-cache','connection':'Keep-Alive','content-type':'application/json','product':'llu.android','version':'4.7'}
+headers={'accept-encoding':'gzip',
+         'cache-control':'no-cache',
+         'connection':'Keep-Alive',
+         'content-type':'application/json',
+         'product':'llu.android',
+         'version':'4.7'
+}
 
-def login(data):
+def login(credentials):
     endpoint = url_base + "/llu/auth/login"
-    return requests.post(endpoint, json=data, headers=headers)
+    return requests.post(endpoint, json=credentials, headers=headers)
 
-def connections(auth, data):
+def connections():
     endpoint = url_base + "/llu/connections"
     return requests.get(endpoint, headers=headers)
 
@@ -18,43 +24,39 @@ def gmc_data(pid):
     return requests.get(endpoint, headers=headers)
 
 
-data = {"email": str(input("email: ")), "password":str(input("password: "))}
-req = login(data)
-
-if (req.status_code != 200):
+# login
+credentials = {"email": str(input("email: ")), "password":str(input("password: "))}
+auth_req = login(credentials)
+if (auth_req.status_code != 200):
     print(f"Failed to login: (status {req.status_code})\nExiting...")
     exit()
-
-if (req.json()['status'] != 0):
+if (auth_req.json()['status'] != 0):
     print(f"login failed: {req.json()['error']['message']}\nExiting...")
     exit()
+print(f"\nLogin: {auth_req}")
+headers['Authorization'] = f"Bearer {str(auth_req.json()['data']['authTicket']['token'])}"
 
-print(f"\nLogin: {req}")
-json = req.json()
-auth = str(json['data']['authTicket']['token'])
 
-headers['Authorization'] = f"Bearer {auth}"
-pats = connections(auth, data)
-
-if (pats.status_code != 200):
-    print(f"Failed to get connections: (status {pats.status_code})\nExiting...")
+# get connections
+con_req = connections()
+if (con_req.status_code != 200):
+    print(f"Failed to get connections: (status {con_req.status_code})\nExiting...")
     exit()
-if (pats.json()['status'] != 0):
-    print(f"Failed to get connections: {pats.json()['error']['message']}\nExiting...")
+if (con_req.json()['status'] != 0):
+    print(f"Failed to get connections: {con_req.json()['error']['message']}\nExiting...")
     exit()
+print(f"\nConnections: {con_req}")
+print(con_req.json()['data'][0])
+pid = con_req.json()['data'][0]['patientId']
 
-pson = pats.json()
-print(f"\nConnections: {pats}")
-print(pson['data'][0])
-pid = pson['data'][0]['patientId']
 
-dat = gmc_data(pid)
-if (dat.status_code != 200):
-    print("Failed to read gmc data: (status {dat.status_code})\nExiting...")
+# get gmc data
+gmc_req = gmc_data(pid)
+if (gmc_req.status_code != 200):
+    print("Failed to read gmc data: (status {gmc_req.status_code})\nExiting...")
     exit()
-if (dat.json()['status'] != 0):
-    print(f"GMC retrieval failed: {dat.json()['error']['message']}\nExiting...")
+if (gmc_req.json()['status'] != 0):
+    print(f"GMC retrieval failed: {gmc_req.json()['error']['message']}\nExiting...")
     exit()
-
-print(f"\nGMC data: {dat}")
-print(dat.json())
+print(f"\nGMC data: {gmc_req}")
+print(gmc_req.json())
