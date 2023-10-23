@@ -7,6 +7,40 @@ def save_file(filename, data):
     f.write(str(data))
     f.close()
 
+def format_json(json):
+    s = str(json)
+    out = ""
+    indent_s = ""
+    is_str = False
+    skip = False
+    for i in range(0, len(s)):
+        if skip:
+            skip = False
+            continue
+        c = s[i]
+        if c == '\'':
+            is_str = not is_str
+        if not is_str:
+            if s[i:i+2] == '{}' or s[i:i+2] == '[]':
+                out += s[i:i+2]
+                skip = True
+                continue
+            elif c == '{' or c == '[':
+                indent_s += '\t'
+                out += c + '\n' + indent_s
+            elif c == '}' or c == ']':
+                indent_s = indent_s[:-1]
+                out += '\n' + indent_s + c
+            elif c == ',':
+                out += c + '\n' + indent_s
+                if s[i+1] == ' ':
+                    skip = True
+            else:
+                out += c
+        else:
+            out += c
+    return out
+
 url_base='https://api-eu.libreview.io'
 headers={'accept-encoding':'gzip',
          'cache-control':'no-cache',
@@ -42,7 +76,7 @@ auth_req = login(credentials)
 handle_response(auth_req, "login")
 print(f"\nLogin: {auth_req}")
 headers['Authorization'] = f"Bearer {str(auth_req.json()['data']['authTicket']['token'])}"
-save_file("login.json", auth_req.json())
+save_file("login.json", format_json(auth_req.json()))
 
 # get connections
 con_req = connections()
@@ -50,7 +84,7 @@ handle_response(con_req, "Get connections")
 print(f"\nConnections: {con_req}")
 print(con_req.json()['data'][0])
 pid = con_req.json()['data'][0]['patientId']
-save_file("connections.json", con_req.json())
+save_file("connections.json", format_json(con_req.json()))
 
 
 # get gmc data
@@ -58,4 +92,4 @@ gmc_req = gmc_data(pid)
 handle_response(gmc_req, "Get GMC data")
 print(f"\nGMC data: {gmc_req}")
 print(gmc_req.json())
-save_file("gmc.json", gmc_req.json())
+save_file("gmc.json", format_json(gmc_req.json()))
